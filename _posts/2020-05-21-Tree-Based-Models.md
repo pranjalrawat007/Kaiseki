@@ -1,3 +1,13 @@
+---
+title: "Tree Based Models - Part 1"
+date: 2020-05-21T15:34:30-04:00
+categories:
+  - blog
+tags:
+  - decision tree
+  - regression
+  - machine learning
+---
 
 Decision Trees (DTs) are a class of supervised learning algorithms for regression and classification tasks. These tasks require the algorithm to learn a mapping from features to a continous or ordinal target. 
 
