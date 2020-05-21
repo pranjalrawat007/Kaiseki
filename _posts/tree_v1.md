@@ -1,0 +1,436 @@
+
+Some of the most popular algorithms used for regression and classification tasks are tree-based models. Of which, the simplest is the Binary Decision Tree. 
+
+A tree is a collection of "nodes" connected in hierarchical parent-child relationships. Nodes contain "data" which can be of any kind. Special functions are used to create and traverse amongst nodes. 
+
+Regression and classification tasks require a mapping of input vectors to a numerical or categorical target. A training dataset of targets and features is used to "learn" such a mapping, which is then evaluated on a different dataset. 
+
+
+# Tree Structure
+
+* The simplest tree has just one "Node". 
+* A "Node" is a capsule that contains some "Data". 
+* Nodes can contain data - string, numbers, array, dictionaries, and even multiple items.
+
+
+```
+class Node:
+    def __init__(self, name, age, occupations):
+        self.name = name
+        self.age = age
+        self.occupations = occupations
+
+root = Node('Donald Trump', 73, ["Saying You're Fired", 'POTUS']) 
+
+print(root.name)
+print(root.age)
+print(root.occupations)
+```
+
+    Donald Trump
+    73
+    ["Saying You're Fired", 'POTUS']
+
+
+* Nodes can have children (up to 2 for a binary tree)
+* These children also contain data!
+* Child nodes can have child nodes too!
+
+
+
+```
+class Node:
+    def __init__(self, data):
+        self.data = data
+        self.left = None
+        self.right = None
+
+    def assign(self, left, right):
+        self.left = Node(left)
+        self.right = Node(right)
+
+root = Node('Donald Trump')
+root.assign('Ivanka Trump', 'Trump Jr')
+root.left.assign('Ivanka-Girl', 'Ivanka-Boy')
+
+print(root.data)
+print('\t', root.left.data)
+print('\t\t', root.left.left.data)
+print('\t\t', root.left.right.data)
+print('\t', root.right.data)
+```
+
+    Donald Trump
+    	 Ivanka Trump
+    		 Ivanka-Girl
+    		 Ivanka-Boy
+    	 Trump Jr
+
+
+Tree Traversal: 
+* As the tree gets larger, it becomes hard to keep track of its contents.
+* Special functions must be used to "traverse" or "travel through" the tree.
+* Example of Recursive Print on a node
+    * Main Operation: Prints the data in the node.
+    * Repeats the steps on the children nodes (if they exist).
+* Applying Recursive Print on root node will ensure that all data in the tree is printed eventually. 
+* The depth parameter measures the distance between the current node and the root. 
+* Super() function just picks up all the properties and functions of Node that exist so far, so as to reduce code re-writing. 
+
+
+```
+class Node(Node):
+    def __init__(self, data):
+        super().__init__(data)
+
+    def recursive_print(self, depth=0):
+        # Step 1: Main Operation
+        print(depth * '\t', '↳', self.data)
+        # Step 2: Repeat Operation in Children
+        if self.left:
+            self.left.recursive_print(depth+1)
+        if self.right:
+            self.right.recursive_print(depth+1)
+
+root = Node('Indira Gandhi')
+root.assign('Rajiv Gandhi', 'Sanjay Gandhi')
+root.left.assign('Rahul Gandhi', 'Priyanka Gandhi Vadra')
+root.left.right.assign('Miraya Vadra', 'Raihan Vadra')
+root.recursive_print()
+```
+
+     ↳ Indira Gandhi
+    	 ↳ Rajiv Gandhi
+    		 ↳ Rahul Gandhi
+    		 ↳ Priyanka Gandhi Vadra
+    			 ↳ Miraya Vadra
+    			 ↳ Raihan Vadra
+    	 ↳ Sanjay Gandhi
+
+
+# Regression Tree
+
+We load the Boston Housing Price dataset, which gives us attributes on houses sold. The sale price becomes the target, while the other attributes like size, area, etc. are used as features. There are a total of 506 examples, 1 target and 13 features. For more details see [here](https://archive.ics.uci.edu/ml/machine-learning-databases/housing/).
+
+
+```
+import numpy as np
+from sklearn.datasets import load_boston
+df = load_boston() # load dataset
+feature_names = dict(enumerate(df.feature_names))
+df = np.c_[df.target, df.data] # append target and features
+print(df.shape) 
+```
+
+    (506, 14)
+
+
+Function to Split Dataset: 
+* takes in a dataset, the index of the feature to split on and the feature value to split on. 
+* returns all records below and above the feature value as two mutually exclusive datasets.
+
+
+```
+def split(data, idx, value):
+    left = data[data[:, idx] <= value]
+    right = data[data[:, idx] > value]
+    return left, right
+
+left, right = split(df, idx = 12, value = 350)
+print(left.shape, right.shape)
+```
+
+    (82, 14) (424, 14)
+
+
+Cost Function:
+
+* In a given partition the best prediction (y_hat) is the mean value of Target in that partition. 
+* Since we are dealing with a continous target, we can evaluate the "Cost" of this prediction using RMSE w.r.t exact values.
+* This "Cost" becomes the criterion on which splitting decision is made.
+* The next step will be: find the split which reduces cost (RMSE) in both left and right datasets.  
+
+
+```
+def costFn(data):
+    y, y_hat = data[:, 0], np.mean(data[:, 0])
+    rmse = np.sqrt(np.mean(np.square(y - y_hat)))
+    return np.round(rmse, 2)
+    
+print(costFn(df), costFn(left), costFn(right))
+```
+
+    9.19 6.39 9.03
+
+
+Best Split Finder:
+
+* Takes in dataset, iterates over all features and feature values.
+* At every step, splits dataset into left and right.
+* Calculates average cost post split.
+* Returns the lowest avg cost post split and the feature index and feature value that achieve it.
+* To prevent imbalanced partitioning, we do not permit splits if data in either children would fall below 10 records. 
+
+
+```
+def bestsplit(data):
+    best_cost, best_idx, best_value = costFn(data), None, None
+
+    # loop over features
+    for idx in range(1, data.shape[1]):  
+
+        # loop over feature values
+        x = data[:, idx]
+        for value in np.linspace(x.min(), x.max(), 100): 
+
+            # split dataset
+            left, right = split(data, idx, value)
+
+            # check if split is legitimate
+            if ((left.shape[0] > 10) & (right.shape[0] > 10)):
+
+                # calculate avg cost post split
+                left_cost, right_cost = costFn(left), costFn(right)
+                avg_cost = (left.shape[0] * left_cost + right.shape[0] * right_cost)/data.shape[0]
+
+                # if avg cost post split is found lower, save index and feature
+                if avg_cost < best_cost: 
+                    best_cost, best_idx, best_value = avg_cost, idx, value
+
+    return best_cost, best_idx, best_value
+
+bestsplit(df)
+```
+
+
+
+
+    (6.582213438735177, 13, 9.783333333333335)
+
+
+
+Some additional data is now stored in the Node:
+* Best Splitting feature Index and Value
+* Mean Prediction in that dataset
+* Cost of Mean Prediction w.r.t actual Target values.
+
+Recursive Build Function: 
+* Finds best splitting criterion (idx, value) and creates left and right datasets. 
+* Repeats procedure inside left and right nodes (if they exist, and are of sufficient size)
+* Terminal Condition:
+    * No best split idx or value is found. 
+    * Resulting left and right datasets are too small, less than 2 records in either. 
+    * Resulting tree now exceeds a certain depth (Max Depth).
+
+Recursive Print:
+
+* Same as before, but tweaked to print only the vital information within a node.
+
+
+```
+class Node(Node):
+    def __init__(self, data):
+        super().__init__(data)
+        self.idx = None 
+        self.value = None
+        self.y_hat = np.round(np.mean(data[:, 0]), 2)
+        self.cost = costFn(data)
+
+    def recursive_build(self, max_depth = 3):
+        if max_depth > 0:
+            best_cost, self.idx, self.value = bestsplit(self.data)
+
+            # if best split is found, create children 
+            if ((self.idx != None) & (self.value != None)): 
+                left, right = split(self.data, self.idx, self.value)
+                self.assign(left, right)
+
+                # if left and right datasets are large enough
+                # splitting is performed in them as well
+                if ((left.shape[0] > 10) & (right.shape[0] > 10)): 
+                    self.left.recursive_build(max_depth - 1)
+                    self.right.recursive_build(max_depth - 1)
+
+    def recursive_print(self, depth=0):
+        print('\n', depth * '\t\t', '↳', f'N = {self.data.shape[0]}, y_hat = {self.y_hat}, Cost = {self.cost}')
+        if self.idx:
+            print(depth * '\t\t', ' ', f'Split = {feature_names[self.idx - 1], np.round(self.value, 2)}')
+
+        if self.left:
+            self.left.recursive_print(depth+1)
+        if self.right:
+            self.right.recursive_print(depth+1)
+```
+
+
+```
+root = Node(df) # place dataset in the node
+root.recursive_build(max_depth = 3) # build child nodes
+root.recursive_print() # print contents
+```
+
+    
+      ↳ N = 506, y_hat = 22.53, Cost = 9.19
+       Split = ('LSTAT', 9.78)
+    
+     		 ↳ N = 213, y_hat = 29.68, Cost = 8.91
+    		   Split = ('RM', 6.88)
+    
+     				 ↳ N = 142, y_hat = 25.35, Cost = 5.68
+    				   Split = ('DIS', 2.46)
+    
+     						 ↳ N = 11, y_hat = 34.07, Cost = 12.29
+    
+     						 ↳ N = 131, y_hat = 24.62, Cost = 3.92
+    
+     				 ↳ N = 71, y_hat = 38.34, Cost = 7.83
+    				   Split = ('RM', 7.42)
+    
+     						 ↳ N = 41, y_hat = 33.39, Cost = 4.65
+    
+     						 ↳ N = 30, y_hat = 45.1, Cost = 6.05
+    
+     		 ↳ N = 293, y_hat = 17.34, Cost = 4.89
+    		   Split = ('LSTAT', 14.92)
+    
+     				 ↳ N = 130, y_hat = 20.71, Cost = 3.13
+    				   Split = ('INDUS', 4.12)
+    
+     						 ↳ N = 12, y_hat = 23.83, Cost = 4.33
+    
+     						 ↳ N = 118, y_hat = 20.39, Cost = 2.79
+    
+     				 ↳ N = 163, y_hat = 14.65, Cost = 4.34
+    				   Split = ('CRIM', 6.38)
+    
+     						 ↳ N = 86, y_hat = 17.0, Cost = 3.4
+    
+     						 ↳ N = 77, y_hat = 12.02, Cost = 3.73
+
+
+Interpretation: 
+* A house in a region where:
+    * LSTAT (% lower status in population) <= 9.78%
+    * RM (rooms per dwelling) > 7.42
+    * has a median selling price of 45.1 x $1000 
+
+* A house in a region where:
+    * LSTAT (% lower status in population) > 14.9%
+    * CRIM (per capita crime rate by town) > 6.38
+    * has a median selling price of 12.02 x $1000 
+
+* Which makes a lot of sense, since it suggests that low status population and crime dampen house prices while more rooms per dwelling raise house prices. While this is simplistic, it is a good place to start explaining house prices. 
+
+# Classification Tree
+
+In a binary classification task, the target is binary i.e 1 or 0. Aν example is the breast cancer dataset where the presence of cancer (1/0) is given alongside other attributes. 
+
+
+```
+import numpy as np
+from sklearn.datasets import load_breast_cancer
+df = load_breast_cancer() # load dataset
+# print(df.DESCR)
+feature_names = dict(enumerate(df.feature_names))
+df = np.c_[df.target, df.data] # append target and features
+print(df.shape) 
+```
+
+    (569, 31)
+
+
+Changes required: 
+* Root mean square error is replaced with the entropy cost function.
+* Y_hat is now interpreted as Probability of Y = 1, given such conditions on features.  
+
+
+```
+def costFn(data):
+    p, ε = np.mean(data[:, 0]), 0.00000001
+    entropy = p * np.log(p + ε) + (1 - p) * np.log(1 - p + ε)
+    return - np.round(entropy, 2)
+```
+
+
+```
+root = Node(df)
+root.recursive_build(max_depth = 4)
+root.recursive_print()
+```
+
+    
+      ↳ N = 569, y_hat = 0.63, Cost = 0.66
+       Split = ('worst perimeter', 115.31)
+    
+     		 ↳ N = 396, y_hat = 0.89, Cost = 0.34
+    		   Split = ('worst concave points', 0.13)
+    
+     				 ↳ N = 339, y_hat = 0.97, Cost = 0.14
+    				   Split = ('area error', 35.86)
+    
+     						 ↳ N = 316, y_hat = 0.99, Cost = 0.05
+    						   Split = ('mean texture', 21.39)
+    
+     								 ↳ N = 258, y_hat = 1.0, Cost = -0.0
+    
+     								 ↳ N = 58, y_hat = 0.95, Cost = 0.2
+    
+     						 ↳ N = 23, y_hat = 0.65, Cost = 0.65
+    						   Split = ('worst texture', 23.64)
+    
+     								 ↳ N = 11, y_hat = 0.91, Cost = 0.3
+    
+     								 ↳ N = 12, y_hat = 0.42, Cost = 0.68
+    
+     				 ↳ N = 57, y_hat = 0.44, Cost = 0.69
+    				   Split = ('worst texture', 27.31)
+    
+     						 ↳ N = 34, y_hat = 0.74, Cost = 0.58
+    						   Split = ('mean concave points', 0.05)
+    
+     								 ↳ N = 12, y_hat = 1.0, Cost = -0.0
+    
+     								 ↳ N = 22, y_hat = 0.59, Cost = 0.68
+    
+     						 ↳ N = 23, y_hat = 0.0, Cost = -0.0
+    
+     		 ↳ N = 173, y_hat = 0.02, Cost = 0.11
+    		   Split = ('mean concavity', 0.06)
+    
+     				 ↳ N = 11, y_hat = 0.36, Cost = 0.66
+    
+     				 ↳ N = 162, y_hat = 0.0, Cost = -0.0
+
+
+Interpretation: 
+* If the measurements are:
+    * worst perimeter <= 115.31, worst concave points <= 0.13, area error <= 35.86, 
+    * mean texture <= 21.39
+    * the probability of having cancer is almost 1, a certainty.
+* Which could make sense, but that would require verification from domain experts e.g. doctors. 
+* Its not easy to interpret. 
+
+# Hyper-parameters
+
+
+Max Depth: 
+* controls the complexity of the mapping between inputs and outputs
+* sufficiently high depth will ensure a perfect mapping between inputs and output, but this will be specific to this dataset and not generalizable to other datasets
+
+Minimum Size Requirement: 
+* type 1: the minimum records permissible in leaf nodes, which in turn curtails the set of possible splitting criterions
+* type 2: the minimum records permissible in any nodes to allow splitting to proceed.
+* by keeping a minimum of 10 records in terminal nodes and in any node for splitting to proceed, we ensure 'balanced' tree growth. 
+* This in turn keeps predictions from turning extreme.
+
+Class and Example/Sample Weights: 
+* These parameters impact the internal working of the cost function
+* In a traditional classification tree - both classes are equal. And every example in the dataset has an equal 'vote'.  
+* Class and Sample weights allow certain classes and samples to be penalized more and therefore the resulting decision rules will be perform better on these classes and samples (as compared to a situation without weights).  
+* Sample weights turns out to be extremely critical in forcing the tree to perform better in areas where it did not do well initially. This is the underlying approach in more complex methods like boosting. 
+
+# Further Reading
+
+* Classification and Regression Trees - a book by Brieman, which you can find on Libgen. 
+* Sklearn's documentation [here](https://scikit-learn.org/stable/modules/tree.html).
+* This [article](https://www.analyticsvidhya.com/blog/2016/04/tree-based-algorithms-complete-tutorial-scratch-in-python/) on Analytics Vidhya.
