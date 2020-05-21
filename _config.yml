@@ -19,7 +19,7 @@ description: >- # this means to ignore newlines until "baseurl:"
  Everything quantitative: Economics, statistics and machine learning.
 twitter_username: PranjalHappy
 github_username: rawatpranjal007
-minimal_mistakes_skin: contrast
+minimal_mistakes_skin: air
 search: true
 repository: "rawatpranjal007/Kaiseki"
 
