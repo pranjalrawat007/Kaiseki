@@ -26,7 +26,7 @@ For continous targets, reduction in average RMSE determines splitting feature an
 * Nodes can contain data - string, numbers, array, dicts, etc. 
 
 
-```
+```python
 class Node:
     def __init__(self, name, age, occupations):
         self.name = name
@@ -93,7 +93,7 @@ Tree Traversal:
 * The Depth parameter can be used, optionally, to count the depth of the current node from the root. 
 
 
-```
+```python
 class Node(Node):
     def __init__(self, data):
         super().__init__(data)
@@ -131,7 +131,7 @@ root.recursive_print()
 We load the Boston Housing Price dataset, which gives us attributes on houses sold. The sale price becomes the target, while the other attributes like size, area, etc. are used as features. There are a total of 506 examples, 1 target and 13 features. [link text](https://)
 
 
-```
+```python
 from sklearn.datasets import load_boston
 df = load_boston()
 feature_names = dict([[i[0]+1, i[1]] for i in enumerate(list(df.feature_names))])
@@ -174,7 +174,7 @@ print(df.DESCR[20:1422])
 
 
 
-```
+```python
 import numpy as np
 df = np.c_[df.target, df.data] # append Target and Features
 print(df.shape) 
@@ -188,7 +188,7 @@ Function to Split Dataset:
 * returns all records below and above the feature value as two mutually exclusive datasets.
 
 
-```
+```python
 def split(data, idx, value):
     left = data[data[:, idx] <= value]
     right = data[data[:, idx] > value]
@@ -207,7 +207,7 @@ Cost Function:
 * calculates Root Mean Square Error between y_hat and y
 
 
-```
+```python
 def rmse(data):
     y = data[:, 0] 
     y_hat = np.mean(data[:, 0])
@@ -228,7 +228,7 @@ Best Split Finder:
 * returns lowest avg cost after split and it's corresponding split index and split value
 
 
-```
+```python
 def bestsplit(data):
     best_rmse, best_idx, best_value = rmse(data), None, None
     for idx in range(1, data.shape[1]): # loop over all features 
@@ -270,7 +270,7 @@ Recursive Print:
 * same as before, but slightly tweaked to better print the data contents of a Regression Tree
 
 
-```
+```python
 class Node(Node):
     def __init__(self, data):
         super().__init__(data)
@@ -301,7 +301,7 @@ class Node(Node):
 ```
 
 
-```
+```python
 root = Node(df)
 root.recursive_build(max_depth = 3)
 root.recursive_print()
@@ -364,8 +364,3 @@ Depth:
 * controls the complexity of the mapping between inputs and outputs
 * sufficiently high depth will ensure a perfect mapping between inputs and output, but this will be specific to this dataset and not generalizable to other datasets
 * Optimal depth can be selected by observing performance on a validation dataset to ensure our decision rules are generalizable
-
-
-```
-
-```
